@@ -23,7 +23,7 @@ public class Messenger {
                         Thread InstantGroupMessageCheck = new Thread(new InstantGroupMessageCheck());
                         InstantGroupMessageCheck.start();
                         System.out.println("PRESS: [1] SEND MESSAGE | [2] MY CHATS | " +
-                                "[3] CREATE PUBLIC CHANNEL | [4] JOIN PUBLIC CHANNELS | [5] READ MESSAGES | [6] LOG OUT");
+                                "[3] CREATE CHATS | [4] JOIN PUBLIC CHANNELS | [5] READ MESSAGES | [6] LOG OUT");
                         int number = scanner.nextInt();
                         if (number == 1) {
                             System.out.println("[1]  PRIVATE CHATS   |   [2] PUBLIC CHANNELS");
