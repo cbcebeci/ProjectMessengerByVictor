@@ -1,88 +1,203 @@
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
-public class Messages {
-    static Scanner scanner = new Scanner(System.in);
+class Messages {
 
-    public static void sendingMessage() throws IOException {
+    private static Scanner scanner = new Scanner(System.in);
+    private static Path listOfChatNames = Paths.get("src/chats/listOfChatNames.txt");
+    private static Path listOfChatNamesCopy = Paths.get("src/copyOfChats/listOfChatNamesCopy.txt");
+     static Map<Integer, String> chatList = new HashMap<>();
 
-        System.out.println("Please §he user you would like to send message.");
-        String name = scanner.nextLine();
-        if (UserList.getUserByName(name) == null) {
-            System.out.println("User name does not exist.");
-        } else {
-            System.out.println("Please enter your message.");
-            String message = scanner.nextLine();
 
-            String messageFile = name + ".txt";
-            if (!Files.exists(Paths.get(messageFile))) {
-                Files.createFile(Paths.get(messageFile));
+    static void createPrivateGroupChat(String user) throws IOException{
+        Thread instantMessageCheck = new Thread(new InstantMessageCheck());
+        instantMessageCheck.start();
+
+        if (!Files.exists(listOfChatNames)) {
+            Files.createFile((listOfChatNames));
+        }
+        if (!Files.exists(listOfChatNamesCopy)) {
+            Files.createFile((listOfChatNamesCopy));
+        }
+
+        Set<String> groupChat = new TreeSet<>(); //names are already added sorted.
+
+        System.out.println("PLEASE ENTER USER/USER NAMES.\r\n" +
+                "[DONE] WHEN YOU ARE DONE.");
+        Login.printAllUsers();
+        while (true) {
+            System.out.println("PLEASE ENTER NAME\r");
+            String name = scanner.nextLine();
+            if (name.equalsIgnoreCase("DONE")) {
+                break;
+            } else if (!UserLists.getUsers().containsKey(name)) {
+                System.out.println("USER NAME DOES NOT EXIST.");
+            } else {
+                groupChat.add(name);
             }
-            Files.write(Paths.get(messageFile), (message + "\r\n").getBytes(), StandardOpenOption.APPEND);
+        }
+        groupChat.add(user);
+
+        //creating a group-chat-file name as 'chatname'.
+
+        String chatName = String.join("-", groupChat);
+
+
+        //checking if group name exist or not.
+
+        Path groupChatFile = Paths.get("src/chats/"+ chatName + ".txt");
+        if (!Files.exists(groupChatFile)) {
+            Files.createFile(groupChatFile);
+
+            for (String names : groupChat) {
+
+                Files.write(groupChatFile, (names + ":" + groupChat.size() + "\r\n").getBytes(), StandardOpenOption.APPEND);
+
+            }
+            Files.write(listOfChatNames, (chatName + "\r\n").getBytes(), StandardOpenOption.APPEND);
+        }
+
+        Path groupChatFileCopy = Paths.get("src/copyOfChats/"+ chatName + ".txt");
+        if (!Files.exists(groupChatFileCopy)) {
+            Files.createFile(groupChatFileCopy);
+            Files.write(listOfChatNamesCopy, (chatName + "\r\n").getBytes(), StandardOpenOption.APPEND);
+        }
+
+
+    }
+
+
+    static void sendingMessage(String user, String chatName) throws IOException {
+
+        Path groupChatFile = Paths.get("src/chats/"+ chatName + ".txt");
+        Path groupChatFileCopy = Paths.get("src/copyOfChats/"+ chatName + ".txt");
+
+        System.out.println("PLEASE ENTER YOUR MESSAGE.");
+        String message = scanner.nextLine();
+
+        Files.write(groupChatFile, (user + " said:\r\n" + message + "\r\n").getBytes(),
+                StandardOpenOption.APPEND);
+
+        Files.write(groupChatFileCopy, (user + " said:\r\n" + message + "\r\n").getBytes(),
+                StandardOpenOption.APPEND);
+
+        List<String> updateChatFile = Files.readAllLines(groupChatFile);
+        for (int lineNumber = 0; lineNumber < updateChatFile.size(); lineNumber++) {
+            String[] split = updateChatFile.get(lineNumber).split(":");
+
+            if (split[0].equals(user)){
+                int number = Integer.parseInt(split[1]);
+                if (number != updateChatFile.size()) {
+
+                    String updatedLine = split[0] + ":" + updateChatFile.size();
+                    updateChatFile.set(lineNumber, updatedLine);
+                    Files.write(groupChatFile, updateChatFile);
+                    return;
+                }
+            }
         }
 
     }
 
-    public static void checkingMessages() throws IOException {
+    static void findingChats(String someone) throws IOException {
+
+        List<String> privateChatList = Files.readAllLines(listOfChatNames, Charset.forName("UTF-8"));
+
+        int number = 1;
+        for (String lines : privateChatList) {
+            String[] split = lines.split("-");
+            for (String s : split) {
+                if (someone.equals(s)) {
+                    chatList.put(number, lines);
+
+                    number++;
+                }
+
+            }
+        }
+        if(chatList.size() == 0){
+            System.out.println("PRIVATE CHAT LIST: \nThere is no chat on your name.\n----------");
+        }else {
+            System.out.println("PRIVATE CHAT LIST: \n" + chatList + "\n----------\r" );
+        }
+    }
 
 
-        System.out.println("Would you like to check new messages (N) or read-messages (R)? Press N or R.");
+    static void readingMessagesFromChats(String user) throws IOException {
+        System.out.println("YOUR CHATS. PLEASE CHOOSE THE NUMBER.");
+        findingChats(user);
+        int someNumber = scanner.nextInt();
+        scanner.nextLine();
+
+        System.out.println("[N] NEW MESSAGES   |   [R] READ MESSAGES");
+
         String userInput = scanner.nextLine();
 
-
         if (userInput.equalsIgnoreCase("N")) {
-            checkingNewMessages(Login.getUserLoggedIn());
+            readNewMessagesFromChats(user, chatList.get(someNumber));
 
         } else if (userInput.equalsIgnoreCase("R")) {
-            printAllMessages(Login.getUserLoggedIn());
-        }else{
-            System.out.println("Incorrect input.");
+            readAllMessagesInChat(user, chatList.get(someNumber));
+        } else {
+            System.out.println("INCORRECT INPUT.");
         }
+
 
     }
 
+    private static void readNewMessagesFromChats(String someone, String fileName) throws IOException {
+        String fileLocation = "src/chats/" + fileName + ".txt";
+        List<String> groupChat = Files.readAllLines(Paths.get(fileLocation), Charset.forName("UTF-8"));
 
-    public static void checkingNewMessages(String userName) throws IOException {
-        String fileLocation = userName + ".txt";
-        List<String> lines = Files.readAllLines(Paths.get(fileLocation), Charset.forName("UTF-8"));
+        for (int lineNumber = 0; lineNumber < groupChat.size(); lineNumber++) {
+            String[] split = groupChat.get(lineNumber).split(":");
 
-        int number = Integer.parseInt(lines.get(0));
-        if (number == lines.size()) {
-            System.out.println("There is no new message now.");
-        } else {
+            if (split[0].equals(someone)) {
+                int number = Integer.parseInt(split[1]);
+                if (number == groupChat.size()) {
+                    System.out.println("THERE IS NO NEW MESSAGE");
+                } else {
+                    for (int counter = number; counter < groupChat.size(); counter++) {
+                        System.out.println(groupChat.get(counter));
 
-            for (int counter = number; counter < lines.size(); counter++) {
-                System.out.println(lines.get(counter));
-            }
-            lines.set(0, String.valueOf(lines.size()));
-            Files.write(Paths.get(fileLocation), lines);
-        }
-    }
+                    }
+                    String updatedLine = someone + ":" + groupChat.size();
+                    groupChat.set(lineNumber, updatedLine);
+                    Files.write(Paths.get(fileLocation), groupChat);
 
-
-    public static void printAllMessages(String userName) throws IOException {
-        String fileLocation = userName + ".txt";
-        List<String> lines = Files.readAllLines(Paths.get(fileLocation), Charset.forName("UTF-8"));
-
-        int number = Integer.parseInt(lines.get(0));
-        if (number == lines.size()) {
-            System.out.println("You have not received any message yet.");
-        } else {
-            for (String line : lines) {
-                System.out.println(line);
-
-                lines.set(0, String.valueOf(lines.size()));
-                Files.write(Paths.get(fileLocation), lines);
+                }
             }
         }
+
     }
 
+    private static void readAllMessagesInChat(String someOne, String fileName) throws IOException {
+        String fileLocation = "src/chats/" + fileName + ".txt";
+        List<String> groupChat = Files.readAllLines(Paths.get(fileLocation), Charset.forName("UTF-8"));
 
+
+        for (int lineNumber = 0; lineNumber < groupChat.size(); lineNumber++) {
+            String[] split = groupChat.get(lineNumber).split(":");
+            if (split[0].equals(someOne)) {
+
+                String[] anotherSplit = fileName.split("-");
+
+                for (int counter = anotherSplit.length; counter < groupChat.size(); counter++) {
+                    System.out.println(groupChat.get(counter));
+
+                }
+                String updatedLine = someOne + ":" + groupChat.size();
+                groupChat.set(lineNumber, updatedLine);
+                Files.write(Paths.get(fileLocation), groupChat);
+            }
+        }
+    }
 
 
 }
+

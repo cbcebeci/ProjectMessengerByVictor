@@ -1,14 +1,14 @@
 public class User {
-    private String nickname;
-    private String password;
+    private static String nickname;
+    private static String password;
 
-    public User(String nickname, String password) {
+    public  User(String nickname, String password) {
         this.nickname = nickname;
         this.password = password;
     }
 
 
-    public String getNickname() {
+    public static String getNickname() {
         return nickname;
     }
 
@@ -16,7 +16,7 @@ public class User {
         this.nickname = nickname;
     }
 
-    public String getPassword() {
+    public static String getPassword() {
         return password;
     }
 
